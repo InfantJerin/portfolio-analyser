@@ -1,0 +1,26 @@
+{
+    "current_date": "2024-01-17",
+    "current_sentiment": {
+        "market_sentiment": 0.18,
+        "AAPL_sentiment": 0.22,
+        "GOOGL_sentiment": 0.15,
+        "MSFT_sentiment": 0.25,
+        "AMZN_sentiment": 0.20,
+        "TSLA_sentiment": 0.35,
+        "JPM_sentiment": 0.12,
+        "JNJ_sentiment": 0.08,
+        "PG_sentiment": 0.18
+    },
+    "current_prices": {
+        "AAPL": 190.25,
+        "GOOGL": 147.85,
+        "MSFT": 385.78,
+        "AMZN": 156.78,
+        "TSLA": 252.45,
+        "JPM": 174.25,
+        "JNJ": 163.78,
+        "PG": 160.45
+    },
+    "market_regime": "neutral",
+    "volatility_environment": "normal"
+}

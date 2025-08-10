@@ -1,0 +1,9 @@
+ticker,weight,name,sector
+AAPL,0.25,Apple Inc,Technology
+GOOGL,0.20,Alphabet Inc,Technology
+MSFT,0.15,Microsoft Corporation,Technology
+AMZN,0.10,Amazon.com Inc,Consumer Discretionary
+TSLA,0.10,Tesla Inc,Consumer Discretionary
+JPM,0.10,JPMorgan Chase & Co,Financials
+JNJ,0.05,Johnson & Johnson,Healthcare
+PG,0.05,Procter & Gamble,Consumer Staples

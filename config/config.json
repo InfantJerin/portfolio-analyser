@@ -1,0 +1,41 @@
+{
+    "forecast_horizon": 20,
+    "model_params": {
+        "lightgbm": {
+            "objective": "regression",
+            "metric": "rmse",
+            "boosting_type": "gbdt",
+            "num_leaves": 31,
+            "learning_rate": 0.05,
+            "feature_fraction": 0.9,
+            "bagging_fraction": 0.8,
+            "bagging_freq": 5,
+            "verbose": 0,
+            "random_state": 42
+        }
+    },
+    "risk_params": {
+        "confidence_levels": [0.95, 0.99],
+        "var_method": "historical",
+        "risk_free_rate": 0.02
+    },
+    "simulation_params": {
+        "monte_carlo_iterations": 10000,
+        "bootstrap_blocks": 1000,
+        "random_seed": 42
+    },
+    "scenario_thresholds": {
+        "bullish": 0.2,
+        "bearish": -0.2,
+        "sentiment_shift": {
+            "bullish": 0.3,
+            "neutral": 0.0,
+            "bearish": -0.3
+        }
+    },
+    "feature_engineering": {
+        "sentiment_lags": [1, 2, 3, 5],
+        "price_features": ["returns_1d", "returns_5d", "volatility_10d", "rsi_14d"],
+        "technical_indicators": true
+    }
+}
