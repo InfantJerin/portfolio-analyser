@@ -54,6 +54,16 @@ def run_prediction_pipeline(portfolio_path, prices_path, sentiment_path, config_
     # Get PyPortfolioOpt formatted data
     pypfopt_prices, weights_dict = data_ingestion.create_pypfopt_data()
     
+    # Check for holdings data
+    holdings_data = data_ingestion.get_current_holdings()
+    rebalancing_data = data_ingestion.calculate_rebalancing_needs()
+    
+    if holdings_data:
+        print(f"   ✓ Holdings data found: ${holdings_data['total_portfolio_value']:,.0f} total value")
+        if rebalancing_data:
+            rebalancing_pct = rebalancing_data['summary']['rebalancing_percentage']
+            print(f"   ⚠ Portfolio needs rebalancing: {rebalancing_pct:.1%} deviation")
+    
     print("   ✓ Data loaded and aligned successfully")
     print(f"   ✓ Portfolio: {len(portfolio_data)} assets")
     print(f"   ✓ Data range: {len(aligned_prices)} days")
@@ -114,6 +124,30 @@ def run_prediction_pipeline(portfolio_path, prices_path, sentiment_path, config_
     var_cvar = portfolio_analyzer.calculate_var_cvar(aligned_returns, weights_dict)
     print(f"     VaR (95%): {var_cvar['VaR_0.95']:.4f}")
     print(f"     CVaR (95%): {var_cvar['CVaR_0.95']:.4f}")
+    
+    # Portfolio holdings analysis if available
+    holdings_analysis = None
+    rebalancing_trades = None
+    if holdings_data:
+        holdings_analysis = portfolio_analyzer.calculate_current_portfolio_value(holdings_data)
+        print(f"\n   Portfolio Holdings Analysis:")
+        print(f"     Total Portfolio Value: ${holdings_analysis['total_value']:,.0f}")
+        
+        # Show largest weight deviations
+        max_deviation = 0
+        for ticker, analysis in holdings_analysis['weight_analysis'].items():
+            deviation = abs(analysis['difference'])
+            if deviation > max_deviation:
+                max_deviation = deviation
+        print(f"     Maximum Weight Deviation: {max_deviation:.1%}")
+        
+        # Rebalancing analysis
+        if rebalancing_data:
+            rebalancing_trades = portfolio_analyzer.calculate_rebalancing_trades(rebalancing_data)
+            if rebalancing_trades['summary']['recommended']:
+                print(f"     Rebalancing Recommended: Net benefit ${rebalancing_trades['summary']['net_benefit']:.0f}")
+            else:
+                print(f"     Rebalancing Not Recommended: Cost exceeds benefit")
     
     # Step 4: Monte Carlo Simulation
     print("\n4. Running Monte Carlo simulations...")
@@ -191,6 +225,12 @@ def run_prediction_pipeline(portfolio_path, prices_path, sentiment_path, config_
         }
     }
     
+    # Add holdings analysis if available
+    if holdings_data:
+        results['holdings_analysis'] = holdings_analysis
+        if rebalancing_trades:
+            results['rebalancing_analysis'] = rebalancing_trades
+    
     # Save to JSON
     results_file = os.path.join(output_dir, 'portfolio_prediction_results.json')
     with open(results_file, 'w') as f:
@@ -204,6 +244,47 @@ def run_prediction_pipeline(portfolio_path, prices_path, sentiment_path, config_
     scenario_summary.to_csv(scenario_file, index=False)
     print(f"   ✓ Scenario summary saved to {scenario_file}")
     
+    # Create holdings and rebalancing reports if available
+    if holdings_data:
+        # Holdings breakdown report
+        holdings_df = pd.DataFrame({
+            'ticker': list(holdings_analysis['holdings_breakdown'].keys()),
+            'shares': [h['shares'] for h in holdings_analysis['holdings_breakdown'].values()],
+            'current_price': [h['price'] for h in holdings_analysis['holdings_breakdown'].values()],
+            'market_value': [h['market_value'] for h in holdings_analysis['holdings_breakdown'].values()],
+            'current_weight': [h['percentage'] for h in holdings_analysis['holdings_breakdown'].values()],
+            'target_weight': [holdings_analysis['weight_analysis'][ticker]['target_weight'] 
+                             for ticker in holdings_analysis['holdings_breakdown'].keys()],
+            'weight_difference': [holdings_analysis['weight_analysis'][ticker]['difference'] 
+                                 for ticker in holdings_analysis['holdings_breakdown'].keys()]
+        })
+        
+        holdings_file = os.path.join(output_dir, 'current_holdings.csv')
+        holdings_df.to_csv(holdings_file, index=False)
+        print(f"   ✓ Current holdings report saved to {holdings_file}")
+        
+        # Rebalancing trades report if available
+        if rebalancing_trades and rebalancing_trades['summary']['total_trades'] > 0:
+            trades_data = []
+            for ticker, trade in rebalancing_trades.items():
+                if ticker == 'summary' or not isinstance(trade, dict) or 'action' not in trade:
+                    continue
+                trades_data.append({
+                    'ticker': ticker,
+                    'action': trade['action'],
+                    'shares': trade['shares'],
+                    'trade_value': trade['trade_value'],
+                    'transaction_cost': trade['transaction_cost'],
+                    'current_weight': trade['current_weight'],
+                    'target_weight': trade['target_weight']
+                })
+            
+            if trades_data:
+                trades_df = pd.DataFrame(trades_data)
+                trades_file = os.path.join(output_dir, 'rebalancing_trades.csv')
+                trades_df.to_csv(trades_file, index=False)
+                print(f"   ✓ Rebalancing trades report saved to {trades_file}")
+    
     print("\n" + "="*60)
     print("PIPELINE COMPLETED SUCCESSFULLY!")
     print("="*60)
@@ -213,6 +294,16 @@ def run_prediction_pipeline(portfolio_path, prices_path, sentiment_path, config_
     print(f"• Sharpe Ratio: {adjusted_metrics['sharpe_ratio']:.3f}")
     print(f"• VaR (95%): {var_cvar['VaR_0.95']:.2%}")
     print(f"• Probability of Loss: {mc_results['risk_metrics']['probability_of_loss']:.1%}")
+    
+    # Portfolio holdings summary
+    if holdings_data:
+        print(f"\nCurrent Portfolio:")
+        print(f"• Total Value: ${holdings_analysis['total_value']:,.0f}")
+        print(f"• Number of Holdings: {len(holdings_analysis['holdings_breakdown'])}")
+        if rebalancing_trades and rebalancing_trades['summary']['recommended']:
+            print(f"• Rebalancing Recommended: {rebalancing_trades['summary']['total_trades']} trades")
+            print(f"• Est. Net Benefit: ${rebalancing_trades['summary']['net_benefit']:.0f}")
+    
     print(f"\nScenario Comparison:")
     for scenario in ['bearish', 'neutral', 'bullish']:
         if scenario in scenario_results:

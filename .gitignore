@@ -9,8 +9,8 @@ notebooks/
 *.ipynb
 
 # Python
-src/__pycache__/
-__pycache__/
+**/__pycache__/
+
 *.py[cod]
 *.pyc
 *.pyo

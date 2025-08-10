@@ -1,9 +1,9 @@
-ticker,weight,name,sector
-AAPL,0.25,Apple Inc,Technology
-GOOGL,0.20,Alphabet Inc,Technology
-MSFT,0.15,Microsoft Corporation,Technology
-AMZN,0.10,Amazon.com Inc,Consumer Discretionary
-TSLA,0.10,Tesla Inc,Consumer Discretionary
-JPM,0.10,JPMorgan Chase & Co,Financials
-JNJ,0.05,Johnson & Johnson,Healthcare
-PG,0.05,Procter & Gamble,Consumer Staples
+ticker,weight,name,sector,shares_held,current_price,market_value,total_portfolio_value
+AAPL,0.25,Apple Inc,Technology,131,188.50,24693.50,100000
+GOOGL,0.20,Alphabet Inc,Technology,120,168.00,20160.00,100000
+MSFT,0.15,Microsoft Corporation,Technology,36,418.00,15048.00,100000
+AMZN,0.10,Amazon.com Inc,Consumer Discretionary,54,182.00,9828.00,100000
+TSLA,0.10,Tesla Inc,Consumer Discretionary,40,245.00,9800.00,100000
+JPM,0.10,JPMorgan Chase & Co,Financials,55,182.00,10010.00,100000
+JNJ,0.05,Johnson & Johnson,Healthcare,32,153.00,4896.00,100000
+PG,0.05,Procter & Gamble,Consumer Staples,33,148.00,4884.00,100000

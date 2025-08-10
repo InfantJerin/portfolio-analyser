@@ -48,10 +48,33 @@ class DataIngestion:
         """
         self.portfolio_data = pd.read_csv(portfolio_path)
         
-        # Validate portfolio weights sum to 1
-        weight_sum = self.portfolio_data['weight'].sum()
-        if abs(weight_sum - 1.0) > 0.001:
-            print(f"Warning: Portfolio weights sum to {weight_sum:.4f}, not 1.0")
+        # Check if we have holdings data
+        has_holdings = all(col in self.portfolio_data.columns for col in 
+                          ['shares_held', 'current_price', 'market_value'])
+        
+        if has_holdings:
+            # Validate holdings data consistency
+            calculated_market_values = self.portfolio_data['shares_held'] * self.portfolio_data['current_price']
+            market_value_diff = abs(calculated_market_values - self.portfolio_data['market_value'])
+            if (market_value_diff > 0.01).any():
+                print("Warning: Market values don't match shares_held * current_price")
+            
+            # Calculate actual weights from market values
+            total_value = self.portfolio_data['market_value'].sum()
+            self.portfolio_data['actual_weight'] = self.portfolio_data['market_value'] / total_value
+            
+            # Compare with target weights if present
+            if 'weight' in self.portfolio_data.columns:
+                weight_diff = abs(self.portfolio_data['weight'] - self.portfolio_data['actual_weight'])
+                max_diff = weight_diff.max()
+                if max_diff > 0.01:
+                    print(f"Warning: Portfolio is out of balance. Max difference: {max_diff:.3f}")
+        else:
+            # Traditional weight-based portfolio validation
+            if 'weight' in self.portfolio_data.columns:
+                weight_sum = self.portfolio_data['weight'].sum()
+                if abs(weight_sum - 1.0) > 0.001:
+                    print(f"Warning: Portfolio weights sum to {weight_sum:.4f}, not 1.0")
             
         return self.portfolio_data
     
@@ -156,17 +179,25 @@ class DataIngestion:
         
         return aligned_prices, aligned_sentiment, aligned_returns
     
-    def get_portfolio_weights(self) -> Dict[str, float]:
+    def get_portfolio_weights(self, use_actual=False) -> Dict[str, float]:
         """
         Get portfolio weights as dictionary.
+        
+        Args:
+            use_actual: If True and holdings data exists, use actual weights from market values
         
         Returns:
             Dictionary mapping ticker to weight
         """
         if self.portfolio_data is None:
             raise ValueError("No portfolio data loaded")
+        
+        if use_actual and 'actual_weight' in self.portfolio_data.columns:
+            weight_column = 'actual_weight'
+        else:
+            weight_column = 'weight'
             
-        return dict(zip(self.portfolio_data['ticker'], self.portfolio_data['weight']))
+        return dict(zip(self.portfolio_data['ticker'], self.portfolio_data[weight_column]))
     
     def get_portfolio_tickers(self) -> list:
         """
@@ -199,6 +230,80 @@ class DataIngestion:
         
         return price_data_filtered, weights_dict
     
+    def get_current_holdings(self) -> Optional[Dict]:
+        """
+        Get current holdings information if available.
+        
+        Returns:
+            Dictionary with holdings data or None if not available
+        """
+        if self.portfolio_data is None:
+            raise ValueError("No portfolio data loaded")
+        
+        has_holdings = all(col in self.portfolio_data.columns for col in 
+                          ['shares_held', 'current_price', 'market_value'])
+        
+        if not has_holdings:
+            return None
+        
+        holdings = {}
+        total_value = self.portfolio_data['market_value'].sum()
+        
+        for _, row in self.portfolio_data.iterrows():
+            holdings[row['ticker']] = {
+                'shares_held': row['shares_held'],
+                'current_price': row['current_price'],
+                'market_value': row['market_value'],
+                'target_weight': row.get('weight', 0),
+                'actual_weight': row['market_value'] / total_value
+            }
+        
+        holdings['total_portfolio_value'] = total_value
+        return holdings
+    
+    def calculate_rebalancing_needs(self) -> Optional[Dict]:
+        """
+        Calculate rebalancing requirements if both target weights and holdings exist.
+        
+        Returns:
+            Dictionary with rebalancing data or None if not applicable
+        """
+        if self.portfolio_data is None:
+            return None
+        
+        has_holdings = all(col in self.portfolio_data.columns for col in 
+                          ['shares_held', 'current_price', 'market_value', 'weight'])
+        
+        if not has_holdings:
+            return None
+        
+        total_value = self.portfolio_data['market_value'].sum()
+        rebalancing = {}
+        
+        for _, row in self.portfolio_data.iterrows():
+            ticker = row['ticker']
+            target_value = total_value * row['weight']
+            current_value = row['market_value']
+            difference = target_value - current_value
+            
+            rebalancing[ticker] = {
+                'current_value': current_value,
+                'target_value': target_value,
+                'difference': difference,
+                'shares_to_trade': difference / row['current_price'] if row['current_price'] > 0 else 0,
+                'current_weight': current_value / total_value,
+                'target_weight': row['weight']
+            }
+        
+        # Calculate total rebalancing magnitude
+        total_rebalancing = sum(abs(data['difference']) for data in rebalancing.values()) / 2
+        rebalancing['summary'] = {
+            'total_rebalancing_value': total_rebalancing,
+            'rebalancing_percentage': total_rebalancing / total_value
+        }
+        
+        return rebalancing
+    
     def summary(self) -> Dict:
         """
         Get summary of loaded data.
@@ -209,11 +314,25 @@ class DataIngestion:
         summary = {}
         
         if self.portfolio_data is not None:
-            summary['portfolio'] = {
+            portfolio_summary = {
                 'num_assets': len(self.portfolio_data),
-                'tickers': list(self.portfolio_data['ticker']),
-                'total_weight': self.portfolio_data['weight'].sum()
+                'tickers': list(self.portfolio_data['ticker'])
             }
+            
+            # Add weight information
+            if 'weight' in self.portfolio_data.columns:
+                portfolio_summary['total_weight'] = self.portfolio_data['weight'].sum()
+            
+            # Add holdings information if available
+            has_holdings = all(col in self.portfolio_data.columns for col in 
+                             ['shares_held', 'current_price', 'market_value'])
+            if has_holdings:
+                portfolio_summary['total_market_value'] = self.portfolio_data['market_value'].sum()
+                portfolio_summary['has_holdings_data'] = True
+            else:
+                portfolio_summary['has_holdings_data'] = False
+            
+            summary['portfolio'] = portfolio_summary
         
         if self.price_data is not None:
             summary['prices'] = {

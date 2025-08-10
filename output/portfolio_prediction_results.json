@@ -12,7 +12,9 @@
         "JNJ",
         "PG"
       ],
-      "total_weight": 1.0
+      "total_weight": 1.0,
+      "total_market_value": 99319.5,
+      "has_holdings_data": true
     },
     "prices": {
       "date_range": "2023-01-03 00:00:00 to 2024-01-16 00:00:00",
@@ -247,6 +249,174 @@
         "95": 0.9802960795918646,
         "99": 1.1561060778486747
       }
+    }
+  },
+  "holdings_analysis": {
+    "total_value": 99319.5,
+    "holdings_breakdown": {
+      "AAPL": {
+        "shares": 131,
+        "price": 188.5,
+        "market_value": 24693.5,
+        "percentage": 0.24862690609598317
+      },
+      "GOOGL": {
+        "shares": 120,
+        "price": 168.0,
+        "market_value": 20160.0,
+        "percentage": 0.2029812876625436
+      },
+      "MSFT": {
+        "shares": 36,
+        "price": 418.0,
+        "market_value": 15048.0,
+        "percentage": 0.15151103257668433
+      },
+      "AMZN": {
+        "shares": 54,
+        "price": 182.0,
+        "market_value": 9828.0,
+        "percentage": 0.09895337773549001
+      },
+      "TSLA": {
+        "shares": 40,
+        "price": 245.0,
+        "market_value": 9800.0,
+        "percentage": 0.09867145928040315
+      },
+      "JPM": {
+        "shares": 55,
+        "price": 182.0,
+        "market_value": 10010.0,
+        "percentage": 0.10078584769355464
+      },
+      "JNJ": {
+        "shares": 32,
+        "price": 153.0,
+        "market_value": 4896.0,
+        "percentage": 0.04929545557518916
+      },
+      "PG": {
+        "shares": 33,
+        "price": 148.0,
+        "market_value": 4884.0,
+        "percentage": 0.04917463338015193
+      }
+    },
+    "weight_analysis": {
+      "AAPL": {
+        "target_weight": 0.25,
+        "actual_weight": 0.24862690609598317,
+        "difference": -0.0013730939040168255
+      },
+      "GOOGL": {
+        "target_weight": 0.2,
+        "actual_weight": 0.2029812876625436,
+        "difference": 0.0029812876625436024
+      },
+      "MSFT": {
+        "target_weight": 0.15,
+        "actual_weight": 0.15151103257668433,
+        "difference": 0.0015110325766843347
+      },
+      "AMZN": {
+        "target_weight": 0.1,
+        "actual_weight": 0.09895337773549001,
+        "difference": -0.0010466222645099943
+      },
+      "TSLA": {
+        "target_weight": 0.1,
+        "actual_weight": 0.09867145928040315,
+        "difference": -0.0013285407195968574
+      },
+      "JPM": {
+        "target_weight": 0.1,
+        "actual_weight": 0.10078584769355464,
+        "difference": 0.0007858476935546366
+      },
+      "JNJ": {
+        "target_weight": 0.05,
+        "actual_weight": 0.04929545557518916,
+        "difference": -0.0007045444248108407
+      },
+      "PG": {
+        "target_weight": 0.05,
+        "actual_weight": 0.04917463338015193,
+        "difference": -0.0008253666198480697
+      }
+    }
+  },
+  "rebalancing_analysis": {
+    "AAPL": {
+      "action": "buy",
+      "shares": 0.7234748010610079,
+      "trade_value": 136.375,
+      "transaction_cost": 0.136375,
+      "current_weight": 0.24862690609598317,
+      "target_weight": 0.25
+    },
+    "GOOGL": {
+      "action": "sell",
+      "shares": 1.7624999999999913,
+      "trade_value": 296.09999999999854,
+      "transaction_cost": 0.29609999999999853,
+      "current_weight": 0.2029812876625436,
+      "target_weight": 0.2
+    },
+    "MSFT": {
+      "action": "sell",
+      "shares": 0.35903110047847064,
+      "trade_value": 150.07500000000073,
+      "transaction_cost": 0.15007500000000074,
+      "current_weight": 0.15151103257668433,
+      "target_weight": 0.15
+    },
+    "AMZN": {
+      "action": "buy",
+      "shares": 0.5711538461538501,
+      "trade_value": 103.95000000000073,
+      "transaction_cost": 0.10395000000000074,
+      "current_weight": 0.09895337773549001,
+      "target_weight": 0.1
+    },
+    "TSLA": {
+      "action": "buy",
+      "shares": 0.5385714285714316,
+      "trade_value": 131.95000000000073,
+      "transaction_cost": 0.13195000000000073,
+      "current_weight": 0.09867145928040315,
+      "target_weight": 0.1
+    },
+    "JPM": {
+      "action": "sell",
+      "shares": 0.4288461538461498,
+      "trade_value": 78.04999999999927,
+      "transaction_cost": 0.07804999999999927,
+      "current_weight": 0.10078584769355464,
+      "target_weight": 0.1
+    },
+    "JNJ": {
+      "action": "buy",
+      "shares": 0.45735294117647296,
+      "trade_value": 69.97500000000036,
+      "transaction_cost": 0.06997500000000037,
+      "current_weight": 0.04929545557518916,
+      "target_weight": 0.05
+    },
+    "PG": {
+      "action": "buy",
+      "shares": 0.5538851351351376,
+      "trade_value": 81.97500000000036,
+      "transaction_cost": 0.08197500000000037,
+      "current_weight": 0.04917463338015193,
+      "target_weight": 0.05
+    },
+    "summary": {
+      "total_trades": 8,
+      "total_transaction_cost": 1.0484500000000008,
+      "estimated_benefit": 78.63375000000005,
+      "net_benefit": 77.58530000000005,
+      "recommended": "True"
     }
   }
 }

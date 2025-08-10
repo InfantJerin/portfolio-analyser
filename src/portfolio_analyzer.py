@@ -13,7 +13,7 @@ warnings.filterwarnings('ignore')
 from pypfopt import expected_returns, risk_models
 from pypfopt.efficient_frontier import EfficientFrontier
 from pypfopt import objective_functions
-from pypfopt.discrete_allocation import DiscreteAllocation
+# Discrete allocation will be imported conditionally
 from pypfopt import plotting
 
 
@@ -353,3 +353,187 @@ class PortfolioAnalyzer:
             'total_return_contribution': return_contributions.sum(),
             'total_risk_contribution': risk_contributions.sum()
         }
+    
+    def calculate_current_portfolio_value(self, holdings_data: Dict) -> Dict:
+        """
+        Calculate current portfolio metrics based on actual holdings.
+        
+        Args:
+            holdings_data: Dictionary with current holdings information
+            
+        Returns:
+            Dictionary with current portfolio value analysis
+        """
+        total_value = holdings_data['total_portfolio_value']
+        analysis = {
+            'total_value': total_value,
+            'holdings_breakdown': {},
+            'weight_analysis': {}
+        }
+        
+        for ticker, holding in holdings_data.items():
+            if ticker == 'total_portfolio_value':
+                continue
+                
+            analysis['holdings_breakdown'][ticker] = {
+                'shares': holding['shares_held'],
+                'price': holding['current_price'],
+                'market_value': holding['market_value'],
+                'percentage': holding['market_value'] / total_value
+            }
+            
+            analysis['weight_analysis'][ticker] = {
+                'target_weight': holding['target_weight'],
+                'actual_weight': holding['actual_weight'],
+                'difference': holding['actual_weight'] - holding['target_weight']
+            }
+        
+        return analysis
+    
+    def calculate_rebalancing_trades(self, rebalancing_data: Dict, 
+                                   transaction_cost_pct: float = 0.001) -> Dict:
+        """
+        Calculate specific trades needed for rebalancing with transaction costs.
+        
+        Args:
+            rebalancing_data: Rebalancing requirements from DataIngestion
+            transaction_cost_pct: Transaction cost as percentage of trade value
+            
+        Returns:
+            Dictionary with trade recommendations
+        """
+        trades = {}
+        total_cost = 0
+        
+        for ticker, data in rebalancing_data.items():
+            if ticker == 'summary':
+                continue
+                
+            difference = data['difference']
+            shares_to_trade = data['shares_to_trade']
+            
+            if abs(shares_to_trade) < 0.1:  # Skip tiny trades
+                continue
+                
+            trade_value = abs(difference)
+            transaction_cost = trade_value * transaction_cost_pct
+            total_cost += transaction_cost
+            
+            trades[ticker] = {
+                'action': 'buy' if shares_to_trade > 0 else 'sell',
+                'shares': abs(shares_to_trade),
+                'trade_value': trade_value,
+                'transaction_cost': transaction_cost,
+                'current_weight': data['current_weight'],
+                'target_weight': data['target_weight']
+            }
+        
+        # Calculate net benefit of rebalancing
+        rebalancing_benefit = self._estimate_rebalancing_benefit(rebalancing_data)
+        
+        trades['summary'] = {
+            'total_trades': len([t for t in trades.values() if isinstance(t, dict) and 'action' in t]),
+            'total_transaction_cost': total_cost,
+            'estimated_benefit': rebalancing_benefit,
+            'net_benefit': rebalancing_benefit - total_cost,
+            'recommended': rebalancing_benefit > total_cost * 2  # Only if benefit > 2x cost
+        }
+        
+        return trades
+    
+    def _estimate_rebalancing_benefit(self, rebalancing_data: Dict) -> float:
+        """
+        Estimate the benefit of rebalancing based on weight deviations.
+        
+        Args:
+            rebalancing_data: Rebalancing data
+            
+        Returns:
+            Estimated annual benefit in dollar terms
+        """
+        if 'summary' not in rebalancing_data:
+            return 0
+        
+        total_value = sum(data['current_value'] for ticker, data in rebalancing_data.items() 
+                         if ticker != 'summary')
+        rebalancing_pct = rebalancing_data['summary']['rebalancing_percentage']
+        
+        # Rough estimate: benefit = portfolio_value * rebalancing_percentage * risk_reduction_factor
+        # This is a simplified model; in practice, you'd use more sophisticated calculations
+        risk_reduction_factor = 0.15  # Assume 15% of misallocation translates to risk reduction
+        estimated_benefit = total_value * rebalancing_pct * risk_reduction_factor
+        
+        return estimated_benefit
+    
+    def discrete_allocation_recommendation(self, 
+                                         optimized_weights: Dict[str, float],
+                                         total_portfolio_value: float,
+                                         current_prices: Dict[str, float]) -> Dict:
+        """
+        Calculate discrete share allocation for a given portfolio value.
+        
+        Args:
+            optimized_weights: Target weights from optimization
+            total_portfolio_value: Total value to allocate
+            current_prices: Current prices for each asset
+            
+        Returns:
+            Dictionary with discrete allocation recommendation
+        """
+        try:
+            from pypfopt.discrete_allocation import DiscreteAllocation
+            
+            # Create price series for DiscreteAllocation
+            prices_series = pd.Series(current_prices)
+            
+            da = DiscreteAllocation(optimized_weights, prices_series, 
+                                  total_portfolio_value=total_portfolio_value)
+            allocation, leftover = da.greedy_portfolio()
+            
+            # Calculate actual values and weights
+            actual_allocation = {}
+            total_allocated = 0
+            
+            for ticker, shares in allocation.items():
+                value = shares * current_prices[ticker]
+                actual_allocation[ticker] = {
+                    'shares': shares,
+                    'value': value,
+                    'target_weight': optimized_weights[ticker],
+                    'actual_weight': value / total_portfolio_value
+                }
+                total_allocated += value
+            
+            return {
+                'allocation': actual_allocation,
+                'leftover_cash': leftover,
+                'total_allocated': total_allocated,
+                'allocation_efficiency': total_allocated / total_portfolio_value
+            }
+            
+        except ImportError:
+            print("Warning: DiscreteAllocation requires pypfopt. Returning approximate allocation.")
+            
+            # Fallback: simple allocation
+            allocation = {}
+            leftover = total_portfolio_value
+            
+            for ticker, weight in optimized_weights.items():
+                target_value = total_portfolio_value * weight
+                shares = int(target_value / current_prices[ticker])
+                actual_value = shares * current_prices[ticker]
+                
+                allocation[ticker] = {
+                    'shares': shares,
+                    'value': actual_value,
+                    'target_weight': weight,
+                    'actual_weight': actual_value / total_portfolio_value
+                }
+                leftover -= actual_value
+            
+            return {
+                'allocation': allocation,
+                'leftover_cash': leftover,
+                'total_allocated': total_portfolio_value - leftover,
+                'allocation_efficiency': (total_portfolio_value - leftover) / total_portfolio_value
+            }
