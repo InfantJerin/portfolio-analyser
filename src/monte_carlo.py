@@ -349,6 +349,151 @@ class MonteCarloSimulation:
         std = np.std(data)
         return np.mean(((data - mean) / std) ** 4) - 3  # Excess kurtosis
     
+    def calculate_goal_probabilities(self, final_values: np.ndarray, targets: Dict[str, float]) -> Dict[str, float]:
+        """
+        Calculate probability of reaching specific financial targets.
+        
+        Args:
+            final_values: Array of simulated final portfolio values
+            targets: Dictionary of target names and values (e.g., {'retirement_goal': 5000000})
+            
+        Returns:
+            Dictionary with probability of reaching each target
+        """
+        probabilities = {}
+        
+        for target_name, target_value in targets.items():
+            prob_success = (final_values >= target_value).mean()
+            probabilities[target_name] = prob_success
+            
+        return probabilities
+    
+    def retirement_analysis(self, simulation_results: Dict, retirement_target: float, 
+                          shortfall_threshold: float = None, upside_threshold: float = None) -> Dict:
+        """
+        Comprehensive retirement planning analysis.
+        
+        Args:
+            simulation_results: Results from Monte Carlo simulation
+            retirement_target: Target retirement amount (e.g., 50000000 for ₹5 crore)
+            shortfall_threshold: Threshold for shortfall analysis (default: 80% of target)
+            upside_threshold: Threshold for upside analysis (default: 160% of target)
+            
+        Returns:
+            Dictionary with retirement planning insights
+        """
+        final_values = simulation_results['final_values_array']
+        initial_value = simulation_results['simulation_params']['initial_value']
+        
+        # Set default thresholds if not provided
+        if shortfall_threshold is None:
+            shortfall_threshold = retirement_target * 0.8  # 80% of target
+        if upside_threshold is None:
+            upside_threshold = retirement_target * 1.6    # 160% of target
+            
+        # Calculate key probabilities
+        prob_success = (final_values >= retirement_target).mean()
+        prob_shortfall = (final_values < shortfall_threshold).mean()
+        prob_upside = (final_values >= upside_threshold).mean()
+        
+        # Calculate expected outcomes in different scenarios
+        successful_outcomes = final_values[final_values >= retirement_target]
+        shortfall_outcomes = final_values[final_values < shortfall_threshold]
+        upside_outcomes = final_values[final_values >= upside_threshold]
+        
+        # Additional analysis
+        median_outcome = np.median(final_values)
+        mean_outcome = np.mean(final_values)
+        worst_case_5pct = np.percentile(final_values, 5)
+        best_case_95pct = np.percentile(final_values, 95)
+        
+        analysis = {
+            'retirement_target': retirement_target,
+            'shortfall_threshold': shortfall_threshold,
+            'upside_threshold': upside_threshold,
+            'initial_investment': initial_value,
+            'forecast_horizon_years': simulation_results['simulation_params']['forecast_horizon'] / 252,
+            
+            # Core probabilities
+            'probability_success': prob_success,
+            'probability_shortfall': prob_shortfall, 
+            'probability_upside': prob_upside,
+            
+            # Expected outcomes
+            'median_outcome': median_outcome,
+            'mean_outcome': mean_outcome,
+            'worst_case_5pct': worst_case_5pct,
+            'best_case_95pct': best_case_95pct,
+            
+            # Conditional analysis
+            'mean_if_successful': np.mean(successful_outcomes) if len(successful_outcomes) > 0 else None,
+            'mean_if_shortfall': np.mean(shortfall_outcomes) if len(shortfall_outcomes) > 0 else None,
+            'mean_if_upside': np.mean(upside_outcomes) if len(upside_outcomes) > 0 else None,
+            
+            # Risk metrics
+            'shortfall_amount_mean': max(0, retirement_target - np.mean(final_values[final_values < retirement_target])) if any(final_values < retirement_target) else 0,
+            'probability_of_loss': (final_values < initial_value).mean(),
+        }
+        
+        return analysis
+    
+    def goal_based_summary(self, retirement_analysis: Dict, currency_symbol: str = "₹") -> str:
+        """
+        Generate user-friendly retirement planning summary.
+        
+        Args:
+            retirement_analysis: Results from retirement_analysis method
+            currency_symbol: Currency symbol for formatting
+            
+        Returns:
+            Formatted string with retirement planning insights
+        """
+        target = retirement_analysis['retirement_target']
+        shortfall_threshold = retirement_analysis['shortfall_threshold'] 
+        upside_threshold = retirement_analysis['upside_threshold']
+        
+        prob_success = retirement_analysis['probability_success']
+        prob_shortfall = retirement_analysis['probability_shortfall']
+        prob_upside = retirement_analysis['probability_upside']
+        
+        median_outcome = retirement_analysis['median_outcome']
+        
+        # Format amounts in crores for Indian context
+        target_crores = target / 10_000_000
+        shortfall_crores = shortfall_threshold / 10_000_000
+        upside_crores = upside_threshold / 10_000_000
+        median_crores = median_outcome / 10_000_000
+        
+        summary = f"""
+🎯 RETIREMENT PLANNING ANALYSIS
+{'='*50}
+
+Target: {currency_symbol}{target_crores:.1f} crore
+
+📊 PROBABILITY BREAKDOWN:
+• {prob_success:.1%} probability of reaching {currency_symbol}{target_crores:.1f} crore target
+• {prob_shortfall:.1%} probability of shortfall (less than {currency_symbol}{shortfall_crores:.1f} crore)
+• {prob_upside:.1%} probability of upside success (more than {currency_symbol}{upside_crores:.1f} crore)
+
+💰 EXPECTED OUTCOME:
+• Median portfolio value: {currency_symbol}{median_crores:.2f} crore
+• Most likely range: {currency_symbol}{retirement_analysis['worst_case_5pct']/10_000_000:.2f} - {currency_symbol}{retirement_analysis['best_case_95pct']/10_000_000:.2f} crore (90% confidence)
+
+⚠️ RISK ANALYSIS:
+• Probability of any loss: {retirement_analysis['probability_of_loss']:.1%}
+• Years to goal: {retirement_analysis['forecast_horizon_years']:.1f} years
+"""
+        
+        # Add recommendation based on success probability
+        if prob_success >= 0.8:
+            summary += "\n✅ RECOMMENDATION: Strong likelihood of meeting retirement goal!"
+        elif prob_success >= 0.6:
+            summary += "\n⚠️ RECOMMENDATION: Moderate success probability. Consider increasing contributions."
+        else:
+            summary += "\n🚨 RECOMMENDATION: Low success probability. Reassess strategy or extend timeline."
+            
+        return summary
+    
     def export_simulation_paths(self, simulation_results: Dict, filename: str = None) -> pd.DataFrame:
         """
         Export simulation paths to DataFrame.
